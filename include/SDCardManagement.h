@@ -33,7 +33,7 @@ void removeDir(const char *path)
 }
 
 //Write a file in SD card
-void writeFile(const char *path, uint8_t * buffer, size_t bufferLen)
+void writeFile(const char *path, uint8_t *buffer, size_t bufferLen)
 {
     Serial.printf("Writing file: %s\n", path);
 
@@ -43,10 +43,42 @@ void writeFile(const char *path, uint8_t * buffer, size_t bufferLen)
         Serial.println("Failed to open file for writing");
         return;
     }
-    else 
+    else
     {
         file.write(buffer, bufferLen);
         Serial.println("File written");
+    }
+    file.close();
+}
+
+size_t getFileSize(const char *filePath)
+{
+    size_t fileSize = 0;
+    File file = SD_MMC.open(filePath, FILE_READ);
+    if (!file)
+        Serial.println("Failed to open file for reading");
+    else
+        fileSize = file.size();
+
+    if (file)
+        file.close();
+    return fileSize;
+}
+
+void readFile(const char *path, char *result)
+{
+    Serial.printf("Reading file: %s\n", path);
+
+    File file = SD_MMC.open(path, FILE_READ);
+    if (!file)
+    {
+        Serial.println("Failed to open file for reading");
+        return;
+    }
+    else
+    {
+        file.readBytes((char *)result, file.size());
+        Serial.println("File read");
     }
     file.close();
 }
@@ -82,9 +114,9 @@ void unmontSdCard()
     SD_MMC.end();
 }
 
-bool isDirectoryExists(const char * directory)
+bool isDirectoryExists(const char *directory)
 {
-    Serial.printf("Listing directory: %s\n", directory);
+    Serial.printf("Check if directory: %s exists\n", directory);
 
     File root = SD_MMC.open(directory);
     if (!root)
@@ -97,5 +129,18 @@ bool isDirectoryExists(const char * directory)
         Serial.println("Not a directory");
         return false;
     }
+    Serial.println("Directory exist");
     return true;
+}
+
+bool isFileExists(const char *filePath)
+{
+     Serial.printf("Check if file: %s exists\n", filePath);
+    bool result = SD_MMC.exists(filePath);
+
+    if(result)
+         Serial.printf("file: %s exists\n", filePath);
+    else
+         Serial.printf("file: %s does not exists\n", filePath);
+    return result;
 }

@@ -21,12 +21,46 @@ acquisitionResult acquisitions[nbPhoto];
 int timingDerniereAcquisition;
 const int periodeAcquisitionEnMs = 1000; // Toutes les 1s
 
+String configFile = "/Configuration/Config.json";
+
+void blinkLed(int nbTimes)
+{
+  for(int indexTimes = 0; indexTimes < nbTimes; nbTimes++)
+  {
+    uint8_t state = 0;
+    if(indexTimes %2 == 0)
+      state = 1;
+    digitalWrite(4, state);
+    delay(250);
+  }
+}
+
 void setup()
 {
   Serial.begin(115200);
   Serial.setDebugOutput(false);
+  pinMode(4, OUTPUT);
+  digitalWrite(4, LOW);
+  // Gestion de la carte SD pour stockage temporaire des images acquises
+  mountSdCard();
+  if (!isDirectoryExists("/Pictures"))
+    createDir("/Pictures");
 
+  if (isFileExists(configFile.c_str()))
+  {
+    size_t fileSize = getFileSize(configFile.c_str());
+    char *fileData = (char *)malloc(fileSize);
+    readFile(configFile.c_str(), fileData);
+    decodeConfigFile(String((char *)fileData));
+  }
+  else
+  {
+    blinkLed(20);
+  }
+
+  // initialisation de la caméra
   initCamera();
+
   // Connexion Wi-fi
   adresseIP = connectToWifi(ssid, password);
   // Récupération de l'adresse MAC du device
@@ -43,11 +77,6 @@ void setup()
 
   // Lancement serveur de streaming
   //startCameraServer();
-
-  // Gestion de la carte SD pour stockage temporaire des images acquises
-  mountSdCard();
-  if(!isDirectoryExists("/Pictures"))
-    createDir("/Pictures");
 }
 
 void loop()
@@ -62,10 +91,10 @@ void loop()
   }
 
   // gestion des acquisitions
-  if(doitPrendrePhotos)
+  if (doitPrendrePhotos)
   {
     // fin des acquisitions, envoi du mail
-    if(indexAcquisition >= nbPhoto)
+    if (indexAcquisition >= nbPhoto)
     {
       indexAcquisition = 0;
       doitPrendrePhotos = false;
@@ -75,17 +104,16 @@ void loop()
       //   free(acquisitions[i].buffer);
       // //  acquisitions[i] = NULL;
       // }
-      
     }
-    else if((timingCourant - timingDerniereAcquisition) > periodeAcquisitionEnMs)
-    { 
+    else if ((timingCourant - timingDerniereAcquisition) > periodeAcquisitionEnMs)
+    {
       // Acquisitions
       Serial.println("Acquisition " + String(indexAcquisition));
       String nomImage = String("/Pictures/Picture" + String(indexAcquisition) + ".jpg");
       acquisitionResult acquisition = takePicture();
-      writeFile(nomImage.c_str(), acquisition.buffer, acquisition.bufferLength );
+      writeFile(nomImage.c_str(), acquisition.buffer, acquisition.bufferLength);
       free(acquisition.buffer);
-      indexAcquisition ++;
+      indexAcquisition++;
       timingDerniereAcquisition = timingCourant;
     }
   }
