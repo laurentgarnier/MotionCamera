@@ -1,0 +1,80 @@
+<!DOCTYPE HTML>
+<html>
+
+<head>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js"
+        integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <style>
+        .row {
+            display: flex;
+        }
+
+        .leftcol {
+            flex: 10%;
+        }
+
+        .rightcol {
+            margin-top: 100px;
+            flex: 90%;
+        }
+    </style>
+
+    <script>
+        var deg = 0;
+        function rotateLeft() {
+            deg -= 90;
+            console.log("Rotate image to left");
+            document.getElementById("stream").style.transform = 'rotate(' + deg + 'deg)';
+        }
+
+        function rotateRight() {
+            deg += 90;
+            console.log("Rotate image to right");
+            document.getElementById("stream").style.transform = 'rotate(' + deg + 'deg)';
+        }
+
+        function getIP() {
+            $.ajax({
+                type: "GET",
+                contentType: "application/json",
+                url: "http://192.168.10.200:1880/camera1IP",
+                success: function (json) {
+                    var data = json;
+                    $("#stream").attr("src", "http://" + data.IP);
+                    $("#data").text(data.IP);
+                },
+                error: function (xhr) { alert("Erreur " + xhr.statusText); }
+
+            });
+        }
+
+        window.onload = function () {
+
+            getIP();
+            rotateRight();
+        }
+
+    </script>
+</head>
+
+<body>
+    <div class="row">
+        <div class="leftcol">
+            <h2>Camera 1 viewer</h2>
+            <p>
+            <h4>Rotation image</h4>
+            <button onclick="rotateLeft()">&#171;</button>
+            <button onclick="rotateRight()">&#187;</button>
+            </p>
+            <p><div id="data"></div></p>
+        </div>
+        <div class="rightcol">
+            <img id="stream" style="width:800px" src="ToBeDefine" />
+        </div>
+    </div>
+</body>
+
+
+</html>
