@@ -1,0 +1,15 @@
+{
+    "ssid": "CG",
+    "ssidPwd": "12ImpEglAnt69",
+    "deviceName": "CameraIP_1",
+    "deviceCategory": "CameraIP",
+    "MQTTServerAddress": "192.168.10.200",
+    "emailSenderAccount": "maisoncroziergarnier@gmail.com",
+    "emailSenderPassword": "GMAC@s77L*74IL",
+    "smtpServer": "smtp.gmail.com",
+    "smtpServerPort": 465,
+    "emailSender": "Filou CAM",
+    "emailSubject": "Je crois que j ai vu Filou",
+    "emailMessage": "Filou",
+    "emailRecipient": "lologar69@gmail.com"
+}

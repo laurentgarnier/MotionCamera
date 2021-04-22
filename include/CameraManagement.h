@@ -36,6 +36,8 @@ static const char *_STREAM_CONTENT_TYPE = "multipart/x-mixed-replace;boundary=" 
 static const char *_STREAM_BOUNDARY = "\r\n--" PART_BOUNDARY "\r\n";
 static const char *_STREAM_PART = "Content-Type: image/jpeg\r\nContent-Length: %u\r\n\r\n";
 
+bool serverIsOn = false;
+
 httpd_handle_t stream_httpd = NULL;
 
 typedef struct {
@@ -199,21 +201,36 @@ static esp_err_t stream_handler(httpd_req_t *req)
     return res;
 }
 
-void startCameraServer()
+static httpd_uri_t getUri()
 {
-    httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-    config.server_port = 80;
     httpd_uri_t index_uri = {
         .uri = "/",
         .method = HTTP_GET,
         .handler = stream_handler,
         .user_ctx = NULL};
 
+        return index_uri;
+}
+
+void startCameraServer()
+{
+    httpd_config_t config = HTTPD_DEFAULT_CONFIG();
+    config.server_port = 80;
+    httpd_uri_t index_uri = getUri();
+
     //Serial.printf("Starting web server on port: '%d'\n", config.server_port);
     if (httpd_start(&stream_httpd, &config) == ESP_OK)
     {
         httpd_register_uri_handler(stream_httpd, &index_uri);
+        serverIsOn = true;
     }
+}
+
+void stopCameraServer()
+{
+    httpd_unregister_uri_handler(stream_httpd, getUri().uri, getUri().method);
+    if(httpd_stop(&stream_httpd) == ESP_OK)
+        serverIsOn = false;
 }
 
 void restartESP32Cam()

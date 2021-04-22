@@ -1,6 +1,7 @@
 #include <PubSubClient.h>
 
 bool doitPrendrePhotos = false;
+bool streamModeOn = false;
 
 void connecterAuServeurMQTT(String nomDuDevice, String categorieDuDevice, String adresseMAC, PubSubClient *client)
 {
@@ -56,8 +57,8 @@ void gererReceptionMessage(char *topic, byte *payload, unsigned int len)
   Serial.println(data);
   Serial.println("");
 
-  // Les données arrivent en JSON sous la forme {"photo":[1/0]}
-  DynamicJsonDocument json(128);
+  // Les données arrivent en JSON sous la forme {"photo":[1/0],"streamMode":[0/1]}
+  DynamicJsonDocument json(64);
   DeserializationError error = deserializeJson(json, data);
 
   if (error)
@@ -70,5 +71,8 @@ void gererReceptionMessage(char *topic, byte *payload, unsigned int len)
   JsonObject obj = json.as<JsonObject>();
 
   int photo = obj["photo"];
+  int streamMode = obj["streamMode"];
+
   doitPrendrePhotos = (photo == 1);
+  streamModeOn = (streamMode == 1);
 }

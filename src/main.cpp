@@ -24,6 +24,8 @@ String configFile = "/Configuration/Config.json";
 String picturesDirectory = "/Pictures";
 String pictureName = "Picture";
 
+bool acquisitionsMailEncours = false;
+
 void blinkLed(int nbTimes)
 {
   for (int indexTimes = 0; indexTimes < nbTimes; nbTimes++)
@@ -80,9 +82,6 @@ void setup()
   // Envoi du 1er message de vie sur le topic de découverte
   envoyerMessageDeVie(nomDevice, adresseMAC, adresseIP, clientMqtt, categorieDevice);
   timingDernierEnvoiDesDonnees = millis();
-
-  // Lancement serveur de streaming
-  //startCameraServer();
 }
 
 void loop()
@@ -96,9 +95,33 @@ void loop()
     timingDernierEnvoiDesDonnees = timingCourant;
   }
 
-  // gestion des acquisitions
-  if (doitPrendrePhotos)
+  // lancement du serveur de streaming si il n'est pas déjà lancé et si on n'est pas en cours
+  // d'acquisition pour le mail
+  if(streamModeOn && !serverIsOn && !acquisitionsMailEncours)
   {
+    Serial.println("Request to start streaming server");
+    // Lancement serveur de streaming
+    startCameraServer();
+  }
+
+  if(!streamModeOn && serverIsOn)
+  {
+    Serial.println("Request to stop streaming server");
+    stopCameraServer();
+  }
+
+  // gestion des acquisitions 
+  //(uniquement si le serveur de streming n'est pas activé pour éviter le conflit de récupération du buffer caméra)
+  if (doitPrendrePhotos && !serverIsOn)
+  {
+    if(serverIsOn)
+    {
+      Serial.println("Try to stop streaming server due to mail request");
+      stopCameraServer();
+      return;
+    }
+
+    acquisitionsMailEncours = true;
     // fin des acquisitions, envoi du mail
     if (indexAcquisition >= nbPhoto)
     {
@@ -106,6 +129,7 @@ void loop()
       doitPrendrePhotos = false;
       digitalWrite(4, LOW);
       sendMail(picturesDirectory, nbPhoto);
+      acquisitionsMailEncours = false;
     }
     else if ((timingCourant - timingDerniereAcquisition) > periodeAcquisitionEnMs)
     {
@@ -119,6 +143,7 @@ void loop()
       timingDerniereAcquisition = timingCourant;
     }
   }
+
 
   // gestion de la perte de connexion WIFI, réinitialisation
   if (WiFi.status() != WL_CONNECTED)
