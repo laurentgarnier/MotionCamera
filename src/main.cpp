@@ -3,9 +3,9 @@
 #include "WifiManagement.h"
 #include "CameraManagement.h"
 #include "MQTTManagement.h"
+#include "SDCardManagement.h"
 #include "MailManagement.h"
 #include "Configuration.h"
-#include "SDCardManagement.h"
 
 String adresseMAC;
 IPAddress adresseIP;
@@ -17,35 +17,41 @@ const int periodeEnvoiMessageDeVieEnMs = 10000; // Toutes les 10s
 
 int indexAcquisition = 0;
 const int nbPhoto = 10;
-acquisitionResult acquisitions[nbPhoto];
 int timingDerniereAcquisition;
 const int periodeAcquisitionEnMs = 1000; // Toutes les 1s
 
 String configFile = "/Configuration/Config.json";
+String picturesDirectory = "/Pictures";
+String pictureName = "Picture";
 
 void blinkLed(int nbTimes)
 {
-  for(int indexTimes = 0; indexTimes < nbTimes; nbTimes++)
+  for (int indexTimes = 0; indexTimes < nbTimes; nbTimes++)
   {
-    uint8_t state = 0;
-    if(indexTimes %2 == 0)
-      state = 1;
+    uint8_t state = LOW;
+    if (indexTimes % 2 == 0)
+      state = HIGH;
     digitalWrite(4, state);
     delay(250);
   }
+   digitalWrite(4, LOW);
 }
 
 void setup()
 {
   Serial.begin(115200);
   Serial.setDebugOutput(false);
+  
   pinMode(4, OUTPUT);
-  digitalWrite(4, LOW);
+  //MailClient.sdBegin();
   // Gestion de la carte SD pour stockage temporaire des images acquises
   mountSdCard();
-  if (!isDirectoryExists("/Pictures"))
-    createDir("/Pictures");
+  if (isDirectoryExists(picturesDirectory.c_str()))
+    removeDir(picturesDirectory.c_str());
 
+  createDir(picturesDirectory.c_str());
+
+  // Récupération de la configuration sur la carte SD
   if (isFileExists(configFile.c_str()))
   {
     size_t fileSize = getFileSize(configFile.c_str());
@@ -60,7 +66,7 @@ void setup()
 
   // initialisation de la caméra
   initCamera();
-
+  
   // Connexion Wi-fi
   adresseIP = connectToWifi(ssid, password);
   // Récupération de l'adresse MAC du device
@@ -98,18 +104,14 @@ void loop()
     {
       indexAcquisition = 0;
       doitPrendrePhotos = false;
-      // sendPhoto(acquisitions, nbPhoto);
-      // for (int i = 0; i < nbPhoto; i++)
-      // {
-      //   free(acquisitions[i].buffer);
-      // //  acquisitions[i] = NULL;
-      // }
+      digitalWrite(4, LOW);
+      sendMail(picturesDirectory, nbPhoto);
     }
     else if ((timingCourant - timingDerniereAcquisition) > periodeAcquisitionEnMs)
     {
       // Acquisitions
       Serial.println("Acquisition " + String(indexAcquisition));
-      String nomImage = String("/Pictures/Picture" + String(indexAcquisition) + ".jpg");
+      String nomImage = picturesDirectory + String("/") + pictureName + String(indexAcquisition) + ".jpg";
       acquisitionResult acquisition = takePicture();
       writeFile(nomImage.c_str(), acquisition.buffer, acquisition.bufferLength);
       free(acquisition.buffer);

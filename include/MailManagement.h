@@ -1,158 +1,122 @@
-#include <ESP_Mail_Client.h>
+#include "ESP_Mail_Client.h"
+#ifndef CONFIGURATION_H
+#include "Configuration.h"
+#endif
 
-#define emailSenderAccount "maisoncroziergarnier@gmail.com"
-#define emailSenderPassword "GMAC@s77L*74IL"
-#define smtpServer "smtp.gmail.com"
-#define smtpServerPort 465
-#define emailSubject "J ai vu Filou"
-#define emailRecipient "lologar69@gmail.com"
-
-// The Email Sending data object contains config and data to send
 SMTPSession smtp;
-ESP_Mail_Session session;
 
-// Callback function to get the Email sending status
-void smtpCallback(SMTP_Status msg)
+//Callback function to get the Email sending status
+void smtpCallback(SMTP_Status info);
+
+void sendMail(String picturesDirectory, byte nbFile)
 {
-    //Print the current status
-    Serial.println(msg.info());
-}
+  smtp.debug(1);
+  smtp.callback(smtpCallback);
 
-void sendPhoto(acquisitionResult acquisitions[], int imagesNumber)
-{
-    Serial.println("Sending email...");
-    session.server.host_name = smtpServer;
-    session.server.port = smtpServerPort;
-    session.login.email = emailSenderAccount;
-    session.login.password = emailSenderPassword;
+  ESP_Mail_Session session;
+  session.server.host_name = smtpServer.c_str();
+  session.server.port = smtpServerPort;
+  session.login.email = emailSenderAccount.c_str();
+  session.login.password = emailSenderPassword.c_str();
 
-    SMTP_Message message;
+  SMTP_Message message;
+  message.enable.chunking = true;
+  message.sender.name = emailSender.c_str();
+  message.sender.email = emailSenderAccount.c_str();
 
-    message.enable.chunking = true;
-    message.sender.name = "Filou cam";
-    message.sender.email = emailSenderAccount;
-    message.subject = "J ai vu Filou";
-    message.addRecipient("lolo", "lologar69@gmail.com");
+  message.subject = emailSubject.c_str();
 
-    message.text.content = "Regarde mon Filou s'il est beau\r\nN'est-ce pas ?";
-    message.text.charSet = "utf-8";
-    message.text.transfer_encoding = Content_Transfer_Encoding::enc_base64;
+  int indexVirgule = 0;
+  int lastIndexVirgule = 0;
+  do
+  {
+    indexVirgule = emailRecipient.indexOf(",", lastIndexVirgule);
+    String recipient;
 
-    message.priority = esp_mail_smtp_priority::esp_mail_smtp_priority_normal;
-
-    message.response.notify = esp_mail_smtp_notify_success | esp_mail_smtp_notify_failure | esp_mail_smtp_notify_delay;
-    SMTP_Attachment att;
-    for (int indexBuffer = 0; indexBuffer < imagesNumber; indexBuffer++)
+    if (indexVirgule > 0)
     {
-        String nomImage = String("Filou" + String(indexBuffer) + ".jpg");
-        att.descr.filename = nomImage.c_str();
-        att.descr.mime = "image/jpg";
-        att.blob.data = acquisitions[indexBuffer].buffer;
-        att.blob.size = acquisitions[indexBuffer].bufferLength;
-        att.descr.transfer_encoding = Content_Transfer_Encoding::enc_base64;
-        message.addAttachment(att);
-       // message.resetAttachItem(att);
+      recipient = emailRecipient.substring(lastIndexVirgule, indexVirgule);
+      // La recherche suivante commence après la virgule
+      lastIndexVirgule = indexVirgule + 1;
     }
-    smtp.debug(1);
-    if (!smtp.connect(&session))
-        return;
-
-    if (!MailClient.sendMail(&smtp, &message, true))
-        Serial.println("Error sending Email, " + smtp.errorReason());
-}
-
-void sendPhoto(String photoPath)
-{
-    // Preparing email
-    Serial.println("Sending email...");
-    // smtp.callback(smtpCallback);
-
-    if (!SD_MMC.begin())
+    else
     {
-        Serial.println("/!\\ Echec initialisation carte SD");
+      recipient = emailRecipient.substring(lastIndexVirgule, emailRecipient.length());
     }
-    File file = SD_MMC.open(photoPath, FILE_READ);
-    int arraySize = static_cast<int>(file.size());
-    static uint8_t buf[512];
+    recipient.trim();
 
-    while (file.available())
-    {
-        file.read(buf, arraySize);
-    }
-    file.close();
-    session.server.host_name = smtpServer;
-    session.server.port = smtpServerPort;
-    session.login.email = emailSenderAccount;
-    session.login.password = emailSenderPassword;
-    //  session.login.user_domain = "mydomain.net";
+    char *destinataire = (char *)malloc(recipient.length());
+    strcpy(destinataire, recipient.c_str());
 
-    SMTP_Message message;
+    // Serial.println("envoi a : " + recipient + " " + destinataire);
 
-    /* Enable the chunked data transfer with pipelining for large message if server supported */
-    message.enable.chunking = true;
+    message.addRecipient(destinataire, destinataire);
 
-    /* Set the message headers */
-    message.sender.name = "Filou cam";
-    message.sender.email = emailSenderAccount;
-    message.subject = "J ai vu Filou";
-    message.addRecipient("lolo", "lologar69@gmail.com");
+  } while (indexVirgule > 0);
 
-    /** The content transfer encoding e.g.
-   * enc_7bit or "7bit" (not encoded)
-   * enc_qp or "quoted-printable" (encoded)
-   * enc_base64 or "base64" (encoded)
-   * enc_binary or "binary" (not encoded)
-   * enc_8bit or "8bit" (not encoded)
-   * The default value is "7bit"
-  */
-    message.text.content = "Regarde mon Filou s'il est beau\r\nN'est-ce pas ?";
-    message.text.charSet = "utf-8";
-    message.text.transfer_encoding = Content_Transfer_Encoding::enc_base64;
+  message.text.content = emailMessage.c_str();
+  message.text.charSet = "utf-8";
+  message.text.transfer_encoding = Content_Transfer_Encoding::enc_base64;
+  message.priority = esp_mail_smtp_priority_normal;
 
-    /** The message priority
-   * esp_mail_smtp_priority_high or 1
-   * esp_mail_smtp_priority_normal or 3
-   * esp_mail_smtp_priority_low or 5
-   * The default value is esp_mail_smtp_priority_low
-  */
-    message.priority = esp_mail_smtp_priority::esp_mail_smtp_priority_normal;
+  SMTP_Attachment att;
 
-    /** The Delivery Status Notifications e.g.
-   * esp_mail_smtp_notify_never
-   * esp_mail_smtp_notify_success
-   * esp_mail_smtp_notify_failure
-   * esp_mail_smtp_notify_delay
-   * The default value is esp_mail_smtp_notify_never
-  */
-    message.response.notify = esp_mail_smtp_notify_success | esp_mail_smtp_notify_failure | esp_mail_smtp_notify_delay;
+  int indexPicture = 0;
+  while (indexPicture < nbFile)
+  {
+    String nomImage = picturesDirectory + String("/Picture") + String(indexPicture) + ".jpg";
 
-    /* The attachment data item */
-    SMTP_Attachment att;
-    att.descr.filename = "Filou.jpg";
-    att.descr.mime = "image/jpg";
-    att.blob.data = buf;
-    att.blob.size = arraySize;
+    char *fileName = (char *)malloc(nomImage.length());
+    strcpy(fileName, nomImage.c_str());
 
-    // att.file.path = photoPath.c_str();
-    // att.file.storage_type = esp_mail_file_storage_type_sd;
+    // Serial.println("File : " + nomImage + " " + String(nomImage.length()) + " filename : " + fileName);
 
-    /* Need to be base64 transfer encoding for inline image */
+    att.descr.filename = fileName;
+    att.descr.mime = "image/jpeg";
+    att.file.path = fileName;
+    att.file.storage_type = esp_mail_file_storage_type_sd;
     att.descr.transfer_encoding = Content_Transfer_Encoding::enc_base64;
 
-    /** The orange.png file is already base64 encoded file.
-   * Then set the content encoding to match the transfer encoding
-   * which no encoding was taken place prior to sending.
-   */
-    //att.descr.content_encoding = Content_Transfer_Encoding::enc_base64;
+    message.addParallelAttachment(att);
 
-    // message.addInlineImage(att);
-    message.addAttachment(att);
-    smtp.debug(1);
-    /* Connect to server with the session config */
-    if (!smtp.connect(&session))
-        return;
+    message.resetAttachItem(att);
+    indexPicture++;
+  }
 
-    /* Start sending the Email and close the session */
-    if (!MailClient.sendMail(&smtp, &message, true))
-        Serial.println("Error sending Email, " + smtp.errorReason());
+  if (!smtp.connect(&session))
+    return;
+
+  if (!MailClient.sendMail(&smtp, &message, true))
+    Serial.println("Error sending Email, " + smtp.errorReason());
+}
+
+//Callback function to get the Email sending status
+void smtpCallback(SMTP_Status status)
+{
+  /* Print the current status */
+  Serial.println(status.info());
+
+  /* Print the sending result */
+  if (status.success())
+  {
+    Serial.println("----------------");
+    Serial.printf("Message sent success: %d\n", status.completedCount());
+    Serial.printf("Message sent failled: %d\n", status.failedCount());
+    Serial.println("----------------\n");
+    struct tm dt;
+
+    for (size_t i = 0; i < smtp.sendingResult.size(); i++)
+    {
+      /* Get the result item */
+      SMTP_Result result = smtp.sendingResult.getItem(i);
+      localtime_r(&result.timesstamp, &dt);
+
+      Serial.printf("Message No: %d\n", i + 1);
+      Serial.printf("Status: %s\n", result.completed ? "success" : "failed");
+      Serial.printf("Date/Time: %d/%d/%d %d:%d:%d\n", dt.tm_year + 1900, dt.tm_mon + 1, dt.tm_mday, dt.tm_hour, dt.tm_min, dt.tm_sec);
+      Serial.printf("Recipient: %s\n", result.recipients);
+      Serial.printf("Subject: %s\n", result.subject);
+    }
+    Serial.println("----------------\n");
+  }
 }

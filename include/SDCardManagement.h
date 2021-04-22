@@ -1,10 +1,10 @@
 // This post referred to this git. I just keep methods I need
-// https://github.com/v12345vtm/CameraWebserver2SD/blob/master/CameraWebserver2SD/CameraWebserver2SD.ino
+// https://github.com/v12345vtm/CameraWebserver2SD_MMC/blob/master/CameraWebserver2SD_MMC/CameraWebserver2SD_MMC.ino
 
 #include "FS.h"
 #include "SD_MMC.h"
 
-//Create a dir in SD card
+//Create a dir in SD_MMC card
 void createDir(const char *path)
 {
     Serial.printf("Creating Dir: %s\n", path);
@@ -18,7 +18,7 @@ void createDir(const char *path)
     }
 }
 
-//delete a dir in SD card
+//delete a dir in SD_MMC card
 void removeDir(const char *path)
 {
     Serial.printf("Removing Dir: %s\n", path);
@@ -32,7 +32,7 @@ void removeDir(const char *path)
     }
 }
 
-//Write a file in SD card
+//Write a file in SD_MMC card
 void writeFile(const char *path, uint8_t *buffer, size_t bufferLen)
 {
     Serial.printf("Writing file: %s\n", path);
@@ -83,7 +83,7 @@ void readFile(const char *path, char *result)
     file.close();
 }
 
-//Delete a file in SD card
+//Delete a file in SD_MMC card
 void deleteFile(const char *path)
 {
     Serial.printf("Deleting file: %s\n", path);
@@ -143,4 +143,18 @@ bool isFileExists(const char *filePath)
     else
          Serial.printf("file: %s does not exists\n", filePath);
     return result;
+}
+
+byte getNbFileForDirectory(String path)
+{
+    byte nbFile = 0;
+    File root = SD_MMC.open(path);
+    File file = root.openNextFile();
+    while(file)
+    {
+        nbFile++;
+        file.close();
+        file = root.openNextFile();
+    }
+    return nbFile;
 }
